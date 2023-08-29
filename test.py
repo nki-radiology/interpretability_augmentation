@@ -18,8 +18,11 @@ from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 import argparse
 import random
+import torch
 import torchvision.models as models
 import warnings
+
+WANDB_CACHE_DIR = "/projects/SiH_disentanglement/"
 
 warnings.filterwarnings("ignore")
 
@@ -30,10 +33,7 @@ def main(args):
     pl.seed_everything(args.seed)
 
     ### Initialize logging ###
-    wandb_logger = WandbLogger(
-        name=args.wandb_name,
-        project=args.project_name,
-    )
+    wandb_logger = WandbLogger(name=args.wandb_name, project=args.project_name)
     checkpoint_callback = ModelCheckpoint(
         dirpath=args.save_path,
         save_top_k=1,
@@ -102,6 +102,49 @@ def main(args):
         "num_mask_channels": 8,
     }
 
+    if args.model_name == "classifier":
+        ResNetLight = ResNetLightning.load_from_checkpoint(
+            checkpoint_path=args.ckpt_path,
+            num_classes=5,
+            lr=args.learning_rate,
+            img_logger=wandb_logger,
+            batch_size=args.train_batch_size,
+            resnet_version=50,
+            transfer=True,
+        )
+
+        torch.save(
+            ResNetLight.model.state_dict(),
+            "/projects/SiH_disentanglement/results/classifier_no_sobel_no_centre_5/epoch=3-step=1072_state_dict.ckpt",
+        )
+
+    if args.model_name == "sdnet":
+        model = SDNet(
+            sdnet_params["width"],
+            sdnet_params["height"],
+            sdnet_params["num_classes"],
+            sdnet_params["ndf"],
+            sdnet_params["z_lenght"],
+            sdnet_params["norm"],
+            sdnet_params["upsample"],
+            sdnet_params["anatomy_out_channels"],
+            sdnet_params["num_mask_channels"],
+        )
+        SDNetLight = SDNetLightning.load_from_checkpoint(
+            checkpoint_path=args.ckpt_path,
+            model=model,
+            lr=args.learning_rate,
+            img_logger=wandb_logger,
+            batch_size=args.train_batch_size,
+            weight_init=args.weight_init,
+            charbonnier=args.charbonnier,
+            reco_w=args.reco_w,
+            kl_w=args.kl_w,
+            dice_w=args.dice_w,
+            regress_w=args.regress_w,
+            focal_w=args.focal_w,
+        )
+
     if args.model_name == "sdnet_gradcam":
         model = SDNet(
             sdnet_params["width"],
@@ -114,7 +157,8 @@ def main(args):
             sdnet_params["anatomy_out_channels"],
             sdnet_params["num_mask_channels"],
         )
-        SDNetGradCamLight = SDNetGradCamLightning(
+        SDNetGradCamLight = SDNetGradCamLightning.load_from_checkpoint(
+            checkpoint_path=args.ckpt_path,
             model=model,
             classifier=models.resnet50(),
             classifier_ckpt_path=args.classifier_ckpt_path,
@@ -130,58 +174,10 @@ def main(args):
             focal_w=args.focal_w,
         )
 
-    if args.model_name == "classifier":
-        ResNetLight = ResNetLightning(
-            num_classes=5,
-            lr=args.learning_rate,
-            img_logger=wandb_logger,
-            batch_size=args.train_batch_size,
-            resnet_version=50,
-            transfer=True,
-            fine_tuning=False,
-        )
-
-    if args.model_name == "sdnet":
-        model = SDNet(
-            sdnet_params["width"],
-            sdnet_params["height"],
-            sdnet_params["num_classes"],
-            sdnet_params["ndf"],
-            sdnet_params["z_lenght"],
-            sdnet_params["norm"],
-            sdnet_params["upsample"],
-            sdnet_params["anatomy_out_channels"],
-            sdnet_params["num_mask_channels"],
-        )
-        SDNetLight = SDNetLightning(
-            model=model,
-            lr=args.learning_rate,
-            img_logger=wandb_logger,
-            batch_size=args.train_batch_size,
-            weight_init=args.weight_init,
-            charbonnier=args.charbonnier,
-            reco_w=args.reco_w,
-            kl_w=args.kl_w,
-            dice_w=args.dice_w,
-            regress_w=args.regress_w,
-            focal_w=args.focal_w,
-        )
-
     if args.model_name == "gradcam_unet":
         model = UNet(n_channels=3, n_classes=2, bilinear=True)
-        GradCamUNetLight = GradCamUNetLightning(
-            model=model,
-            lr=args.learning_rate,
-            img_logger=wandb_logger,
-            batch_size=args.train_batch_size,
-            save_path=args.save_path,
-        )
-    if args.model_name == "gradcam_deeplab":
-        model_map = {"deeplabv3plus_resnet101": deeplabv3plus_resnet101}
-        model = model_map["deeplabv3plus_resnet101"](
-            num_classes=2, output_stride=16, pretrained_backbone=False
-        )
-        GradCamDeepLabLight = GradCamDeepLabLightning(
+        GradCamUNetLight = GradCamUNetLightning.load_from_checkpoint(
+            checkpoint_path=args.ckpt_path,
             model=model,
             lr=args.learning_rate,
             img_logger=wandb_logger,
@@ -193,15 +189,28 @@ def main(args):
         model = model_map["deeplabv3plus_resnet101"](
             num_classes=2, output_stride=16, pretrained_backbone=False
         )
-        DeepLabLight = DeepLabLightning(
+        DeepLabLight = DeepLabLightning.load_from_checkpoint(
+            checkpoint_path=args.ckpt_path,
             model=model,
             lr=args.learning_rate,
             img_logger=wandb_logger,
             batch_size=args.train_batch_size,
             save_path=args.save_path,
         )
-
-    ### Training ###
+    if args.model_name == "gradcam_deeplab":
+        model_map = {"deeplabv3plus_resnet101": deeplabv3plus_resnet101}
+        model = model_map["deeplabv3plus_resnet101"](
+            num_classes=2, output_stride=16, pretrained_backbone=False
+        )
+        GradCamDeepLabLight = GradCamDeepLabLightning.load_from_checkpoint(
+            checkpoint_path=args.ckpt_path,
+            model=model,
+            lr=args.learning_rate,
+            img_logger=wandb_logger,
+            batch_size=args.train_batch_size,
+            save_path=args.save_path,
+        )
+    ### Testing ###
 
     if args.model_name == "sdnet":
         trainer = Trainer(
@@ -210,29 +219,16 @@ def main(args):
             logger=wandb_logger,
             callbacks=[checkpoint_callback],
         )
-
-        trainer.fit(
-            SDNetLight,
-            datamodule=polypsDataset,
-            # ckpt_path="/projects/shift_review/sdnet_miccai/projects/shift_review/sdnet_miccai/sdnet_no_centre_4_best/last.ckpt",
-        )
-        trainer.test(SDNetLight, datamodule=polypsDataset, ckpt_path="best")
-
-    elif args.model_name == "classifier":
-        trainer = Trainer(
-            max_epochs=args.max_epochs,
-            num_sanity_val_steps=1,
-            logger=wandb_logger,
-            callbacks=[checkpoint_classifier],
-            inference_mode=False,
-        )
-
-        trainer.fit(
-            ResNetLight,
-            datamodule=polypsDataset,
-            # ckpt_path="/projects/shift_review/sdnet_miccai/results/classifier_no_centre_5/last-v1.ckpt",
-        )
-        trainer.test(ResNetLight, datamodule=polypsDataset)
+        trainer.test(model=SDNetLight, datamodule=polypsDataset)
+    # elif args.model_name == "classifier":
+    #     trainer = Trainer(
+    #         max_epochs=args.max_epochs,
+    #         num_sanity_val_steps=1,
+    #         logger=wandb_logger,
+    #         callbacks=[checkpoint_classifier],
+    #         inference_mode=False,
+    #     )
+    #     trainer.test(ResNetLight, datamodule=polypsDataset)
 
     elif args.model_name == "sdnet_gradcam":
         trainer = Trainer(
@@ -241,33 +237,18 @@ def main(args):
             logger=wandb_logger,
             callbacks=[checkpoint_callback],
         )
-        trainer.fit(
-            SDNetGradCamLight,
-            datamodule=polypsDataset,
-            # ckpt_path="/projects/SiH_disentanglement/results/sdnet_gradcam_aug_no_centre_3/last.ckpt",
-        )
-        trainer.test(SDNetGradCamLight, datamodule=polypsDataset, ckpt_path="best")
+
+        trainer.test(SDNetGradCamLight, datamodule=polypsDataset)
 
     elif args.model_name == "gradcam_unet":
         trainer = Trainer(
             max_epochs=args.max_epochs,
-            num_sanity_val_steps=1,
+            num_sanity_val_steps=0,
             logger=wandb_logger,
             callbacks=[checkpoint_callback],
         )
-        trainer.fit(GradCamUNetLight, datamodule=polypsDataset)
-        trainer.test(GradCamUNetLight, datamodule=polypsDataset, ckpt_path="best")
 
-    elif args.model_name == "gradcam_deeplab":
-        trainer = Trainer(
-            max_epochs=args.max_epochs,
-            num_sanity_val_steps=1,
-            logger=wandb_logger,
-            callbacks=[checkpoint_callback],
-        )
-        trainer.fit(GradCamDeepLabLight, datamodule=polypsDataset)
-        trainer.test(GradCamDeepLabLight, datamodule=polypsDataset, ckpt_path="best")
-
+        trainer.test(GradCamUNetLight, datamodule=polypsDataset)
     elif args.model_name == "deeplab":
         trainer = Trainer(
             max_epochs=args.max_epochs,
@@ -275,8 +256,15 @@ def main(args):
             logger=wandb_logger,
             callbacks=[checkpoint_callback],
         )
-        trainer.fit(DeepLabLight, datamodule=polypsDataset)
-        trainer.test(DeepLabLight, datamodule=polypsDataset, ckpt_path="best")
+        trainer.test(DeepLabLight, datamodule=polypsDataset)
+    elif args.model_name == "gradcam_deeplab":
+        trainer = Trainer(
+            max_epochs=args.max_epochs,
+            num_sanity_val_steps=1,
+            logger=wandb_logger,
+            callbacks=[checkpoint_callback],
+        )
+        trainer.test(GradCamDeepLabLight, datamodule=polypsDataset)
 
 
 if __name__ == "__main__":
@@ -327,7 +315,20 @@ if __name__ == "__main__":
         default=0.8,
         help="Specify percentage of training data",
     )
+    parser.add_argument(
+        "--ckpt-path",
+        dest="ckpt_path",
+        type=str,
+        default=None,
+        help="Path to checkpoint file",
+    )
 
+    parser.add_argument(
+        "--csv-saliency",
+        dest="csv_saliency",
+        type=str,
+        help="Specify path to centre saliency maps if needed",
+    )
     ### Initialization parameters ###
     parser.add_argument(
         "--model-name",
@@ -343,7 +344,6 @@ if __name__ == "__main__":
         default=1,
         help="Specify the global random seed",
     )
-
     parser.add_argument(
         "--save-path",
         dest="save_path",
@@ -356,13 +356,6 @@ if __name__ == "__main__":
         dest="classifier_ckpt_path",
         type=str,
         help="Specify path to centre classifier checkpoint",
-    )
-
-    parser.add_argument(
-        "--csv-saliency",
-        dest="csv_saliency",
-        type=str,
-        help="Specify path to centre saliency maps if needed",
     )
 
     parser.add_argument(

@@ -3,6 +3,7 @@ from .SDNet.SDNetLightning import SDNetLightning
 from .Classifier.ResNetLightning import ResNetLightning
 from .ModifiedUNet.unet_model import UNet
 from .ModifiedUNet.GradCamUNet import GradCamUNetLightning
+from .ModifiedUNet.UNetLightning import UNetLightning
 from .SDNet.SDNetLightningGradCam import SDNetGradCamLightning
 from .deeplab.modeling_deeplab import deeplabv3plus_resnet101
 from .deeplab.DeepLabLightning import DeepLabLightning

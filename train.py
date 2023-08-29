@@ -7,6 +7,7 @@ from NewSDNet.models import (
     SDNetGradCamLightning,
     ResNetLightning,
     UNet,
+    UNetLightning,
     GradCamUNetLightning,
     deeplabv3plus_resnet101,
     DeepLabLightning,
@@ -167,6 +168,15 @@ def main(args):
             focal_w=args.focal_w,
         )
 
+    if args.model_name == "unet":
+        model = UNet(n_channels=3, n_classes=2, bilinear=True)
+        UNetLight = UNetLightning(
+            model=model,
+            lr=args.learning_rate,
+            img_logger=wandb_logger,
+            save_path=args.save_path,
+        )
+
     if args.model_name == "gradcam_unet":
         model = UNet(n_channels=3, n_classes=2, bilinear=True)
         GradCamUNetLight = GradCamUNetLightning(
@@ -247,6 +257,14 @@ def main(args):
             # ckpt_path="/projects/SiH_disentanglement/results/sdnet_gradcam_aug_no_centre_3/last.ckpt",
         )
         trainer.test(SDNetGradCamLight, datamodule=polypsDataset, ckpt_path="best")
+
+    elif args.model_name == "unet":
+        trainer.fit(
+            UNetLight,
+            datamodule=polypsDataset,
+            # ckpt_path="/processing/v.corbetta/ranking_loss/results/unet_baseline_no_centre4_best/last-v1.ckpt",
+        )
+        trainer.test(UNetLight, datamodule=polypsDataset, ckpt_path="best")
 
     elif args.model_name == "gradcam_unet":
         trainer = Trainer(

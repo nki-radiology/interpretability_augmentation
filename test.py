@@ -7,6 +7,7 @@ from NewSDNet.models import (
     SDNetGradCamLightning,
     ResNetLightning,
     UNet,
+    UNetLightning,
     GradCamUNetLightning,
     deeplabv3plus_resnet101,
     DeepLabLightning,
@@ -174,6 +175,16 @@ def main(args):
             focal_w=args.focal_w,
         )
 
+    if args.model_name == "unet":
+        model = UNet(n_channels=3, n_classes=2, bilinear=True)
+        UNetLight = UNetLightning.load_from_checkpoint(
+            checkpoint_path=args.path_to_ckpt,
+            model=model,
+            lr=args.learning_rate,
+            img_logger=wandb_logger,
+            save_path=args.save_path,
+        )
+
     if args.model_name == "gradcam_unet":
         model = UNet(n_channels=3, n_classes=2, bilinear=True)
         GradCamUNetLight = GradCamUNetLightning.load_from_checkpoint(
@@ -239,6 +250,16 @@ def main(args):
         )
 
         trainer.test(SDNetGradCamLight, datamodule=polypsDataset)
+
+    elif args.model_name == "unet":
+        trainer = Trainer(
+            max_epochs=args.max_epochs,
+            num_sanity_val_steps=0,
+            logger=wandb_logger,
+            callbacks=[checkpoint_callback],
+        )
+
+        trainer.test(UNetLight, datamodule=polypsDataset)
 
     elif args.model_name == "gradcam_unet":
         trainer = Trainer(

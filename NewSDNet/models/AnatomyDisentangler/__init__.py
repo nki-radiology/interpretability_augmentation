@@ -1,2 +1,0 @@
-from .AnatomyDisentangler import SDNetAnatomyDisentangler
-from .AnatomyDisentanglerLightning import SDNetAnatomyDisLight

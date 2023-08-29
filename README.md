@@ -4,5 +4,5 @@ This repository contains the code of the paper **Interpretability-guided Data Au
 
 ### Graphical Abstract
 
-![all_in_one_figure](NewSDNet/figures/all_in_one_figure.pdf)
+![all_in_one_figure](NewSDNet/figures/all_in_one_figure.png)
 

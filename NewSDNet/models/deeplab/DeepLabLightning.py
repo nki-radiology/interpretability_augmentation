@@ -6,6 +6,7 @@ import torch.optim as optim
 import torchmetrics
 import psutil
 import wandb
+from NewSDNet.utils.losses import *
 from pathlib import Path
 
 # NOTE assume model output of shape (batch,2classes,H,W) with logits output
@@ -31,7 +32,7 @@ class DeepLabLightning(pl.LightningModule):
         super().__init__()
         self.model = model
         # Create loss module
-        self.loss_module = nn.CrossEntropyLoss()
+        self.loss_module = dice_loss()  # nn.CrossEntropyLoss()
         self.lr = lr
         self.img_logger = img_logger
         self.save_path = save_path

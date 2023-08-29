@@ -13,6 +13,7 @@ from monai.visualize import CAM
 from monai.visualize.gradient_based import GuidedBackpropGrad
 import random
 import monai
+from NewSDNet.utils.losses import *
 
 
 # NOTE assume model output of shape (batch,2classes,H,W) with logits output
@@ -40,7 +41,7 @@ class GradCamUNetLightning(pl.LightningModule):
         self.batch_size = batch_size
         self.num_classes = 5
         # Create loss module
-        self.loss_segmentation = nn.CrossEntropyLoss()
+        self.loss_segmentation = dice_loss()  # nn.CrossEntropyLoss()
         self.lr = lr
         self.img_logger = img_logger
         self.save_path = save_path

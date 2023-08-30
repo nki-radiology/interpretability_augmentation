@@ -6,7 +6,7 @@ imgs_centres = {
     "centre3": centre3,
     "centre4": centre4,
     "centre5": centre5,
-    # "centre6": centre6,
+    "centre6": centre6,
 }
 seg_centres = {
     "centre1": centre1_gt,
@@ -14,9 +14,5 @@ seg_centres = {
     "centre3": centre3_gt,
     "centre4": centre4_gt,
     "centre5": centre5_gt,
-    # "centre6": centre6_gt,
+    "centre6": centre6_gt,
 }
-
-
-imgs_test_centre = {"centre6": centre6}
-seg_test_centre = {"centre6": centre6_gt}

@@ -1,0 +1,24 @@
+anatomy_factors: 8
+charbonnier: 0
+classifier_ckpt_path: /projects/shift_review/sdnet_miccai/results/classifier_no_centre_2/last_state_dict.ckpt
+csv_file_name: classifier_all_centres
+csv_saliency: /projects/shift_review/sdnet_miccai/results/saliency_train_all_centres.csv
+dice_w: 10
+focal_w: 0
+kl_w: 0.01
+learning_rate: 1.0e-05
+max_epochs: 300
+modality_factors: 8
+model_name: asdf
+num_workers: 10
+percentage_train: 0.8
+project_name: gradcam_deeplab_miccai
+reco_w: 1
+regress_w: 1
+save_path: /projects/SiH_disentanglement/results/gradcam_deeplab_all_centres_60perc
+seed: 1
+train_batch_size: 4
+wandb_name: gradcam_deeplab_all_centres_60perc
+weight_init: xavier
+out_centres:
+- centre6

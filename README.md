@@ -9,21 +9,22 @@ This repository contains the code of the paper **Interpretability-guided Data Au
 ### Requirements
 
 All experiments were carried out using the following:
-
-* albumentations==1.3.0
-* captum==0.6.0
-* kornia==0.6.12
-* lightning==2.0.0
-* monai==1.1.0
-* numpy==1.23.0
-* pandas==1.4.3
-* psutil==5.9.4
-* scikit-image==0.19.2
-* scikit-learn==1.1.1
-* torch==1.13.1
-* torchmetrics==0.11.4
-* torchvision==0.14.1
-* wandb==0.13.9
+```
+albumentations==1.3.0
+captum==0.6.0
+kornia==0.6.12
+lightning==2.0.0
+monai==1.1.0
+numpy==1.23.0
+pandas==1.4.3
+psutil==5.9.4
+scikit-image==0.19.2
+scikit-learn==1.1.1
+torch==1.13.1
+torchmetrics==0.11.4
+torchvision==0.14.1
+wandb==0.13.9
+```
 
 ### Dataset
 All experiments were conducted on the open-source PolypGen dataset. You can ask for access to the dataset at this [link](https://www.synapse.org/#!Synapse:syn26376615/wiki/613312).

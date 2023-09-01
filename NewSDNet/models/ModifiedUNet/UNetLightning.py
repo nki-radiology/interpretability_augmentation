@@ -7,6 +7,8 @@ import torchmetrics
 import psutil
 import wandb
 from pathlib import Path
+from NewSDNet.utils.losses import *
+
 
 # NOTE assume model output of shape (batch,2classes,H,W) with logits output
 # --> for cross entropy loss
@@ -30,7 +32,7 @@ class UNetLightning(pl.LightningModule):
         super().__init__()
         self.model = model
         # Create loss module
-        self.loss_module = nn.CrossEntropyLoss()
+        self.loss_module = dice_loss()  # nn.CrossEntropyLoss()
         self.lr = lr
         self.img_logger = img_logger
         self.save_path = save_path

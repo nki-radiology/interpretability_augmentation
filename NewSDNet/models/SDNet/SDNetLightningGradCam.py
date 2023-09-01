@@ -28,13 +28,9 @@ class SDNetGradCamLightning(pl.LightningModule):
         dice_w: float,
         regress_w: float,
         focal_w: float,
-        classifier: torch.nn.Module,
-        classifier_ckpt_path: str,
     ):
         super().__init__()
         self.model = model
-        # self.classifier = classifier
-        # self.classifier_ckpt_path = classifier_ckpt_path
         self.lr = lr
         self.batch_size = batch_size
         self.num_classes = 5
@@ -106,12 +102,6 @@ class SDNetGradCamLightning(pl.LightningModule):
             "saliency",
         ]
         initialize_weights(self.model, self.weight_init)
-        # linear_size = list(self.classifier.children())[-1].in_features
-        # self.classifier.fc = nn.Linear(linear_size, self.num_classes)
-        # self.classifier.load_state_dict(torch.load(self.classifier_ckpt_path))
-        # self.cam = CAM(
-        #     nn_module=self.classifier, target_layers="layer4.2.relu", fc_layers="fc"
-        # )
 
     def forward(self, imgs, script_type="validation"):
         return self.model(imgs)
@@ -134,20 +124,6 @@ class SDNetGradCamLightning(pl.LightningModule):
         self.collapsed_b_masks = self.b_masks[:, 1, :, :] * 1
         self.b_masks = self.b_masks.to(torch.device("cuda"))
         self.collapsed_b_masks = self.collapsed_b_masks.to(torch.device("cuda"))
-
-        # imgs_gray = K.color.rgb_to_grayscale(imgs)
-        # imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
-        # sobel_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
-
-        ### Using cam for interpretability ###
-        # saliency_maps_batch: list[torch.Tensor] = []
-        # for img_to_rgb in sobel_to_rgb:
-        #     saliency_map = self.cam(img_to_rgb.unsqueeze(0))
-        #     saliency_maps_batch.append(saliency_map)
-        # saliency_maps = torch.cat(saliency_maps_batch, dim=0)
-        # bin_saliency_maps = torch.where(saliency_maps > 0.6, 1, 0)
-        # bin_saliency_maps_3_ch = K.color.grayscale_to_rgb(bin_saliency_maps)
-        # imgs_to_reconstruct = imgs * bin_saliency_maps_3_ch
 
         (
             reco,
@@ -265,20 +241,6 @@ class SDNetGradCamLightning(pl.LightningModule):
             logical_or = torch.sum(cmask, dim=1)
             tmask_0 = 1 - logical_or
             tmask = torch.cat([tmask_0.unsqueeze(1), cmask], dim=1)
-
-            # imgs_gray = K.color.rgb_to_grayscale(imgs)
-            # imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
-            # sobel_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
-
-            ### Using cam for interpretability ###
-            # saliency_maps_batch: list[torch.Tensor] = []
-            # for img_to_rgb in sobel_to_rgb:
-            #     saliency_map = self.cam(img_to_rgb.unsqueeze(0))
-            #     saliency_maps_batch.append(saliency_map)
-            # saliency_maps = torch.cat(saliency_maps_batch, dim=0)
-            # bin_saliency_maps = torch.where(saliency_maps > 0.6, 1, 0)
-            # bin_saliency_maps_3_ch = K.color.grayscale_to_rgb(bin_saliency_maps)
-            # imgs_to_reconstruct = imgs * bin_saliency_maps_3_ch
 
             reco, a_out, seg_pred, _ = self.model(imgs, script_type="validation")
 
@@ -565,9 +527,9 @@ class SDNetGradCamLightning(pl.LightningModule):
             # self.input_to_segmentor_test.extend(input_seg)
             self.anatomy_in_test.extend(anatomy_channels)
             self.in_test_table.extend(general_imgs)
-        # else:
-        #     self.anatomy_out_test.extend(anatomy_channels)
-        #     self.out_test_table.extend(general_imgs)
+        else:
+            self.anatomy_out_test.extend(anatomy_channels)
+            self.out_test_table.extend(general_imgs)
 
     def on_test_end(self) -> None:
         anatomy_in_test_wandb = []
@@ -613,33 +575,33 @@ class SDNetGradCamLightning(pl.LightningModule):
         #     ]
         #     input_to_seg_test_wandb.append(anatomy_wand)
 
-        # anatomy_out_test_wandb = []
-        # for row in self.anatomy_out_test:
-        #     anatomy_wand = [
-        #         wandb.Image(row[0]),
-        #         wandb.Image(row[1]),
-        #         wandb.Image(row[2]),
-        #         wandb.Image(row[3]),
-        #         wandb.Image(row[4]),
-        #         wandb.Image(row[5]),
-        #         wandb.Image(row[6]),
-        #         wandb.Image(row[7]),
-        #     ]
-        #     anatomy_out_test_wandb.append(anatomy_wand)
+        anatomy_out_test_wandb = []
+        for row in self.anatomy_out_test:
+            anatomy_wand = [
+                wandb.Image(row[0]),
+                wandb.Image(row[1]),
+                wandb.Image(row[2]),
+                wandb.Image(row[3]),
+                wandb.Image(row[4]),
+                wandb.Image(row[5]),
+                wandb.Image(row[6]),
+                wandb.Image(row[7]),
+            ]
+            anatomy_out_test_wandb.append(anatomy_wand)
 
-        # out_test_wandb = []
-        # for row in self.out_test_table:
-        #     anatomy_wand = [
-        #         row[0],
-        #         row[1],
-        #         row[2],
-        #         row[3],
-        #         wandb.Image(row[4]),
-        #         wandb.Image(row[5]),
-        #         wandb.Image(row[6]),
-        #         wandb.Image(row[7]),
-        #     ]
-        #     out_test_wandb.append(anatomy_wand)
+        out_test_wandb = []
+        for row in self.out_test_table:
+            anatomy_wand = [
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                wandb.Image(row[4]),
+                wandb.Image(row[5]),
+                wandb.Image(row[6]),
+                wandb.Image(row[7]),
+            ]
+            out_test_wandb.append(anatomy_wand)
 
         self.trainer.logger.log_table(
             key="in distribution test anatomy channels",
@@ -657,13 +619,13 @@ class SDNetGradCamLightning(pl.LightningModule):
         #     data=input_to_seg_test_wandb,
         # )
 
-        # self.trainer.logger.log_table(
-        #     key="out distribution test anatomy channels",
-        #     columns=self.columns_anatomy,
-        #     data=anatomy_out_test_wandb,
-        # )
-        # self.trainer.logger.log_table(
-        #     key="out distribution test table",
-        #     columns=self.columns_table_test,
-        #     data=out_test_wandb,
-        # )
+        self.trainer.logger.log_table(
+            key="out distribution test anatomy channels",
+            columns=self.columns_anatomy,
+            data=anatomy_out_test_wandb,
+        )
+        self.trainer.logger.log_table(
+            key="out distribution test table",
+            columns=self.columns_table_test,
+            data=out_test_wandb,
+        )

@@ -215,3 +215,5 @@ projects/
 results/
 *__pycache__/
 .vscode/
+outputs/
+NewSDNet/csv_files/

@@ -267,16 +267,16 @@ class SDNet(nn.Module):
         self.num_classes = num_classes
         self.num_mask_channels = num_mask_channels
 
-        self.m_encoder = MEncoder(8)
+        self.m_encoder = MEncoder(self.anatomy_out_channels)
         self.a_encoder = AEncoder(
             self.h,
             self.w,
             self.ndf,
-            8,
+            self.anatomy_out_channels,
             self.norm,
             self.upsample,
         )
-        self.segmentor = Segmentor(8, 1)
+        self.segmentor = Segmentor(self.anatomy_out_channels, 1)
         self.decoder = Decoder(
             self.anatomy_out_channels, self.z_length, self.num_mask_channels
         )
@@ -285,18 +285,11 @@ class SDNet(nn.Module):
         a_out = self.a_encoder(x)
         if saliency is not None:
             prob = random.random()
-            # print(f"\nPROB: {prob}")
             if prob < 0.60:
-                # print(f"\nSONO NEL IF SALIENCY / IF RANDOM.CHOICE = 1")
-                # print(f"\nSONO NEL NOT NON DEL FORWARD DELLE SALIENCY!!!\n")
                 input_to_segmentor = (
                     a_out * saliency
                 )  # this is a change w.r.t original architecture
-                # print(
-                #     f"\nGUARDO SE A_OUT E INPUT TO SEGMENTOR SONO DIVERSI: {torch.unique(a_out[a_out != input_to_segmentor], return_counts=True)}"
-                # )
             else:
-                # print(f"\nSONO NEL IF SALIENCY / IF RANDOM.CHOICE = 0")
                 input_to_segmentor = a_out
         else:
             input_to_segmentor = a_out

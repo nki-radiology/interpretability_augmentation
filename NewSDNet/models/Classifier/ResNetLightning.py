@@ -16,6 +16,9 @@ import numpy as np
 from pathlib import Path
 import pandas as pd
 
+# TODO: fix classifier with hydra so that we have two config files, one for training
+# and one to generate the gradcam visualizations
+
 
 class ResNetLightning(pl.LightningModule):
     resnets = {
@@ -58,28 +61,12 @@ class ResNetLightning(pl.LightningModule):
             "saliency map",
             "cam map alone",
             "cam map binarised",
-            # "gradcam map monai",
-            # "lrp",
-            # "layer_lrp",
-            # "layer_deeplift",
         ]
         self.model = self.resnets[resnet_version](pretrained=transfer)
         self.list_paths_saliency_maps = []
         # Replace old FC layer with Identity so we can train our own
         linear_size = list(self.model.children())[-1].in_features
-        # replace final layer for fine tuning
-        # self.model.fc = nn.Sequential(
-        #     nn.Linear(linear_size, num_classes), nn.Softmax(1)
-        # )
         self.model.fc = nn.Linear(linear_size, num_classes)
-
-        # if tune_fc_only:  # option to only tune the fully-connected layers
-        #     for child in list(self.model.children())[:-1]:
-        #         for param in child.parameters():
-        #             param.requires_grad = False
-        # if self.fine_tuning:
-        #     new_linear_size = list(self.model.children())[-1].in_features
-        #     self.model.fc = nn.Linear(new_linear_size, num_classes + 1)
 
     def forward(self, imgs):
         return self.model(imgs)
@@ -90,11 +77,11 @@ class ResNetLightning(pl.LightningModule):
 
     def training_step(self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx):
         imgs, _, centres = batch
-        # imgs_gray = K.color.rgb_to_grayscale(imgs)
-        # imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
-        # imgs_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
+        imgs_gray = K.color.rgb_to_grayscale(imgs)
+        imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
+        imgs_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
 
-        outputs = self.model(imgs)  # imgs_to_rgb
+        outputs = self.model(imgs_to_rgb)
         loss = self.criterion(outputs, centres)
 
         # Compute accuracy score for predictions
@@ -107,11 +94,11 @@ class ResNetLightning(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx) -> Optional[Any]:
         imgs, _, centres = batch
-        # imgs_gray = K.color.rgb_to_grayscale(imgs)
-        # imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
-        # imgs_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
+        imgs_gray = K.color.rgb_to_grayscale(imgs)
+        imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
+        imgs_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
 
-        outputs = self.model(imgs)  # imgs_to_rgb
+        outputs = self.model(imgs_to_rgb)
         loss = self.criterion(outputs, centres)
 
         # Compute accuracy score for predictions
@@ -122,11 +109,11 @@ class ResNetLightning(pl.LightningModule):
 
     def test_step(self, batch, batch_idx, dataloader_idx: int = 0) -> Optional[Any]:
         imgs, _, centres, _ = batch  # ,_
-        # imgs_gray = K.color.rgb_to_grayscale(imgs)
-        # imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
-        # imgs_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
+        imgs_gray = K.color.rgb_to_grayscale(imgs)
+        imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
+        imgs_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
 
-        outputs = self.model(imgs)  # imgs_to_rgb
+        outputs = self.model(imgs_to_rgb)
 
         # Compute accuracy score for predictions
         acc = self.accuracy(outputs, centres)
@@ -136,10 +123,10 @@ class ResNetLightning(pl.LightningModule):
     def on_test_batch_end(
         self, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0
     ) -> None:
-        imgs, _, centres, imgs_path = batch  # , imgs_path
-        # imgs_gray = K.color.rgb_to_grayscale(imgs)
-        # imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
-        # imgs_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
+        imgs, _, centres = batch  # , imgs_path
+        imgs_gray = K.color.rgb_to_grayscale(imgs)
+        imgs_sobel: torch.Tensor = K.filters.sobel(imgs_gray)
+        imgs_to_rgb: torch.Tensor = K.color.grayscale_to_rgb(imgs_sobel)
 
         with torch.enable_grad():
             outputs = self.model(imgs)  # imgs_to_rgb

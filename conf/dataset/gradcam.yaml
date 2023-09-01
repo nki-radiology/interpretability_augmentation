@@ -1,0 +1,6 @@
+train_batch_size: 4
+csv_file_name: None
+from_csv: True
+per_patient: True
+out_centres: [centre1]
+load_saliency: True

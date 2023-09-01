@@ -85,18 +85,11 @@ class GradCamDeepLabLightning(pl.LightningModule):
         # "batch" is the output of the training data loader.
         imgs, labels, _, saliency_maps = batch
         prob = random.random()
-        # print(f"\nPROB: {prob}")
         if prob < 0.60:
-            # print(f"\nSONO NEL IF SALIENCY / IF RANDOM.CHOICE = 1")
-            # print(f"\nSONO NEL NOT NON DEL FORWARD DELLE SALIENCY!!!\n")
             input_to_segmentor = (
                 imgs * saliency_maps[:, :3, :, :]
             )  # this is a change w.r.t original architecture
-            # print(
-            #     f"\nGUARDO SE A_OUT E INPUT TO SEGMENTOR SONO DIVERSI: {torch.unique(imgs[imgs != input_to_segmentor], return_counts=True)}"
-            # )
         else:
-            # print(f"\nSONO NEL IF SALIENCY / IF RANDOM.CHOICE = 0")
             input_to_segmentor = imgs
 
         segmentation_preds = self.model(
@@ -320,8 +313,8 @@ class GradCamDeepLabLightning(pl.LightningModule):
 
         if dataloader_idx == 0:
             self.in_test_table.extend(images)
-        # else:
-        #     self.out_test_table.extend(images)
+        else:
+            self.out_test_table.extend(images)
 
     def on_test_end(self) -> None:
         in_test_table_wandb = []
@@ -337,18 +330,18 @@ class GradCamDeepLabLightning(pl.LightningModule):
             ]
             in_test_table_wandb.append(table_wand)
 
-        # out_test_table_wandb = []
-        # for row in self.out_test_table:
-        #     table_wand = [
-        #         row[0],
-        #         row[1],
-        #         row[2],
-        #         row[3],
-        #         wandb.Image(row[4]),
-        #         wandb.Image(row[5]),
-        #         wandb.Image(row[6]),
-        #     ]
-        #     out_test_table_wandb.append(table_wand)
+        out_test_table_wandb = []
+        for row in self.out_test_table:
+            table_wand = [
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                wandb.Image(row[4]),
+                wandb.Image(row[5]),
+                wandb.Image(row[6]),
+            ]
+            out_test_table_wandb.append(table_wand)
 
         self.img_logger.log_table(
             key="in distribution test set predictions",
@@ -356,8 +349,8 @@ class GradCamDeepLabLightning(pl.LightningModule):
             data=in_test_table_wandb,
         )
 
-        # self.img_logger.log_table(
-        #     key="out distribution test set predictions",
-        #     columns=self.columns_test,
-        #     data=out_test_table_wandb,
-        # )
+        self.img_logger.log_table(
+            key="out distribution test set predictions",
+            columns=self.columns_test,
+            data=out_test_table_wandb,
+        )

@@ -17,6 +17,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from albumentations.pytorch.transforms import ToTensorV2
 from NewSDNet.utils.paths_centres import *
+from NewSDNet.utils.csv_dicts import PATH_TO_SPLITS
 from NewSDNet.utils.rsynch import rsync_data
 from NewSDNet.utils.patients import (
     patients_centre_six,
@@ -33,12 +34,14 @@ class PolypsDataset(Dataset):
         self,
         images_paths: list[Path],
         labels_paths: list[Path],
+        centre_lbl: list[int],
         load_saliency: bool = False,
         transform=None,
         saliency_paths=None,
     ):
         self.images_paths = images_paths
         self.labels_paths = labels_paths
+        self.centre_lbl = centre_lbl
         self.load_saliency = load_saliency
         self.saliency_paths = saliency_paths
         self.transform = transform
@@ -51,39 +54,32 @@ class PolypsDataset(Dataset):
         label = io.imread(self.labels_paths[idx])  # Tensor[H,W]::uint8 \in [0, 255].
         label = (np.where(label > 128, 1, 0)).astype(np.uint64)
 
-        # centre = int(re.search(r"C(\d)").group(1))-1
-        if "C1" in str(self.images_paths[idx]):
-            centre = 0
-        elif "C2" in str(self.images_paths[idx]):
-            centre = 1
-        elif "C3" in str(self.images_paths[idx]):
-            centre = 5
-        elif "C4" in str(self.images_paths[idx]):
-            centre = 2
-        elif "C5" in str(self.images_paths[idx]):
-            centre = 3
-        elif "C6" in str(self.images_paths[idx]):
-            centre = 4
+        # We want to keep track from which centre the images come from, so that we can log
+        # this info during training, validation and testing
+        mapping = {"C1": 0, "C2": 1, "C3": 2, "C4": 3, "C5": 4, "C6": 5}
+        for key in mapping.keys():
+            if key in str(self.images_paths[idx]):
+                centre = self.centre_lbl[mapping.get(key)]
 
+        # To speed up training we have already computed the gradcam visualizations
+        # if we are doing experiments with the interpretability-guided augmentation
+        # we also need to load them
         if self.load_saliency:
             # Tensor[H,W]::uint64 \in [0,1]
             saliency_torch = torch.load(
                 self.saliency_paths[idx], map_location=torch.device("cpu")
             )
             saliency_np = saliency_torch.squeeze(0).permute(1, 2, 0).numpy().squeeze(-1)
-            # print(f"TYPE OF SALIENCY MAP NP: {saliency_np.type}")
 
-            # assert len(label.shape) == 2, "MASKS ARE BAD"
             data = self.transform(image=image, masks=[label, saliency_np])
-            # for mask in data["masks"]:
-            #     data[mask] = data[mask].type(torch.LongTensor)
             data["masks"][0] = data["masks"][0].type(torch.LongTensor)
             data["masks"][1] = data["masks"][1].type(torch.LongTensor)
-            data["masks"][1] = data["masks"][1].repeat(8, 1, 1)
+            data["masks"][1] = data["masks"][1].repeat(
+                8, 1, 1
+            )  # for SDNet integration we create 8 channels of the gradcam
 
             return data["image"], data["masks"][0], centre, data["masks"][1]
         else:
-            # assert len(label.shape) == 2, "MASKS ARE BAD"
             data = self.transform(image=image, mask=label)
             data["mask"] = data["mask"].type(torch.LongTensor)
             return (
@@ -100,13 +96,14 @@ class PolypsDataModule(pl.LightningDataModule):
         seg_centres: dict[str, Path],
         imgs_out_test_centre: dict[str, Path],
         seg_out_test_centre: dict[str, Path],
-        csv_file_name: list[str],
+        centre_lbl: list[int],
         save_path: Path,
         train_batch_size: int,
         num_workers: int,
         seed: int,
         from_csv: bool = False,
         per_patient: bool = True,
+        csv_file_name: list[str] = None,
         path_to_csvs: dict[str, Path] = None,
         percentage_train: float = 0.8,
         load_saliency: bool = False,
@@ -119,6 +116,7 @@ class PolypsDataModule(pl.LightningDataModule):
         self.seg_centres = seg_centres
         self.imgs_out_test_centre = imgs_out_test_centre
         self.seg_out_test_centre = seg_out_test_centre
+        self.centre_lbl = centre_lbl
         self.csv_file_name = csv_file_name
         self.save_path = save_path
         self.train_batch_size = train_batch_size
@@ -153,15 +151,19 @@ class PolypsDataModule(pl.LightningDataModule):
         imgs_ctr: Dict[str, Path],
         gts_ctr: Dict[str, Path],
     ):
+        """Function to group the frames coming from the same patient for
+        each centre
+        """
         imgs_dict = defaultdict(list)
         for centre_name, centre_path in imgs_ctr.items():
             if centre_name in ["centre1"]:
-                # deduce from filename
+                # Centre1 has info of the patient in the frame name: e.g. 144OLC1_100H0022.jpg and 144OLCV1_100H0024.jpg
                 imgs = sorted(centre_path.glob("*.jpg"))
                 for impath in imgs:
                     imgs_dict[f"C1_{impath.stem[:3]}"].append(impath)
 
             elif centre_name in ["centre2"]:
+                # For Centre2, Centre3, Centre5 and Centre6 the patients' IDs are in utils/patients.py
                 imgs = sorted(
                     centre_path.glob("*.jpg"),
                     key=lambda path: int(path.stem.rsplit("_", 1)[1]),
@@ -180,6 +182,7 @@ class PolypsDataModule(pl.LightningDataModule):
                     imgs_dict[f"C3_{patient_id}"].append(impath)
 
             elif centre_name in ["centre4"]:
+                # Centre4 has info of the patient in the frame name: e.g. 4_endocv2021_poitive_34.jpg and 4_endocv2021_positive_954.jpg
                 imgs = sorted(centre_path.glob("*.jpg"), key=lambda path: path.stem)
 
                 for impath in imgs:
@@ -256,7 +259,8 @@ class PolypsDataModule(pl.LightningDataModule):
         return imgs_dict, gts_dict
 
     def get_list_imgs_gts(self, imgs_ctr, gts_ctr) -> tuple[list[Path, list[Path]]]:
-        """Function to extract paths of images and ground truths given the centres' names"""
+        """Function to extract paths of images and ground truths given the centres' names,
+        not taking into consideration the per patient split"""
         imgs_tot = []
         segs_tot = []
 
@@ -315,7 +319,7 @@ class PolypsDataModule(pl.LightningDataModule):
         return imgs_tot, segs_tot
 
     def get_list_from_csv(self, csv_file) -> tuple[list[Path, list[Path]]]:
-        """Function to get images and ground truths from .csv file"""
+        """Function to get images and ground truths from .csv file, when these are available"""
 
         dataframe = pd.read_csv(csv_file)
         imgs_tot = dataframe["images"].tolist()
@@ -325,9 +329,12 @@ class PolypsDataModule(pl.LightningDataModule):
 
     def prepare_data(self) -> None:
         "Function to load images and labels depending whether csv files with the splits are available or not"
+
+        # Load the paths where the gradcam visualizations are saved
         if self.load_saliency == True:
             self.saliency_maps = pd.read_csv(self.csv_saliency)["gradcam maps"].tolist()
 
+        # If csv files for the splits are available, load them from csv files
         if self.from_csv == True:
             self.train_imgs, self.train_lbls = self.get_list_from_csv(
                 self.path_to_csv_train
@@ -336,6 +343,8 @@ class PolypsDataModule(pl.LightningDataModule):
             self.in_test_imgs, self.in_test_lbls = self.get_list_from_csv(
                 self.path_to_csv_test
             )
+
+        # If the csv files are not available and we want to perform the per patient split
         elif self.per_patient:
             patients_images, patients_gts = self.get_patients_per_centre(
                 self.imgs_centres, self.seg_centres
@@ -381,19 +390,19 @@ class PolypsDataModule(pl.LightningDataModule):
                 list(zip(self.train_imgs, self.train_lbls)),
                 columns=["images", "labels"],
             )
-            csv_name_train = "train_split_" + self.csv_file_name
-            train_df.to_csv(self.save_path + csv_name_train)
+            csv_name_train = self.csv_file_name + "_train_split"
+            train_df.to_csv(PATH_TO_SPLITS / csv_name_train)
             val_df = pd.DataFrame(
                 list(zip(self.val_imgs, self.val_lbls)), columns=["images", "labels"]
             )
-            csv_name_val = "val_split_" + self.csv_file_name
-            val_df.to_csv(self.save_path + csv_name_val)
+            csv_name_val = self.csv_file_name + "_val_split"
+            val_df.to_csv(PATH_TO_SPLITS / csv_name_val)
             in_test_df = pd.DataFrame(
                 list(zip(self.in_test_imgs, self.in_test_lbls)),
                 columns=["images", "labels"],
             )
-            csv_name_test = "in_test_split" + self.csv_file_name
-            in_test_df.to_csv(self.save_path + csv_name_test)
+            csv_name_test = self.csv_file_name + "_in_test_split"
+            in_test_df.to_csv(PATH_TO_SPLITS / csv_name_test)
 
         else:
             imgs_paths, segs_paths = self.get_list_imgs_gts(
@@ -414,8 +423,8 @@ class PolypsDataModule(pl.LightningDataModule):
                 list(zip(self.train_imgs, self.train_lbls)),
                 columns=["images", "labels"],
             )
-            csv_name_train = "train_split_" + self.csv_file_name
-            train_df.to_csv(self.save_path + csv_name_train)
+            csv_name_train = self.csv_file_name + "_train_split"
+            train_df.to_csv(PATH_TO_SPLITS / csv_name_train)
 
             (
                 self.val_imgs,
@@ -429,14 +438,14 @@ class PolypsDataModule(pl.LightningDataModule):
             val_df = pd.DataFrame(
                 list(zip(self.val_imgs, self.val_lbls)), columns=["images", "labels"]
             )
-            csv_name_val = "val_split_" + self.csv_file_name
-            val_df.to_csv(self.save_path + csv_name_val)
+            csv_name_val = self.csv_file_name + "_val_split"
+            val_df.to_csv(PATH_TO_SPLITS / csv_name_val)
             in_test_df = pd.DataFrame(
                 list(zip(self.in_test_imgs, self.in_test_lbls)),
                 columns=["images", "labels"],
             )
-            csv_name_test = "in_test_split" + self.csv_file_name
-            in_test_df.to_csv(self.save_path + csv_name_test)
+            csv_name_test = self.csv_file_name + "_in_test_split"
+            in_test_df.to_csv(PATH_TO_SPLITS / csv_name_test)
 
         if not self.flag_no_centres:
             self.out_test_imgs, self.out_test_lbls = self.get_list_imgs_gts(
@@ -480,6 +489,7 @@ class PolypsDataModule(pl.LightningDataModule):
             self.train_dataset = PolypsDataset(
                 self.train_imgs,
                 self.train_lbls,
+                self.centre_lbl,
                 load_saliency=self.load_saliency,
                 transform=self.train_transforms,
                 saliency_paths=self.saliency_maps,
@@ -488,12 +498,14 @@ class PolypsDataModule(pl.LightningDataModule):
             self.train_dataset = PolypsDataset(
                 self.train_imgs,
                 self.train_lbls,
+                self.centre_lbl,
                 load_saliency=False,
                 transform=self.train_transforms,
             )
         self.val_dataset = PolypsDataset(
             self.val_imgs,
             self.val_lbls,
+            self.centre_lbl,
             load_saliency=False,
             transform=self.val_transforms,
         )
@@ -501,6 +513,7 @@ class PolypsDataModule(pl.LightningDataModule):
         self.in_test_dataset = PolypsDataset(
             self.in_test_imgs,
             self.in_test_lbls,
+            self.centre_lbl,
             load_saliency=False,
             transform=self.val_transforms,
         )
@@ -509,6 +522,7 @@ class PolypsDataModule(pl.LightningDataModule):
             self.out_test_dataset = PolypsDataset(
                 self.out_test_imgs,
                 self.out_test_lbls,
+                self.centre_lbl,
                 load_saliency=False,
                 transform=self.val_transforms,
             )

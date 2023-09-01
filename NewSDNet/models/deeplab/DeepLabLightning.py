@@ -165,7 +165,7 @@ class DeepLabLightning(pl.LightningModule):
         outputs: Optional[Any],
         batch: Any,
         batch_idx: int,
-        dataloader_idx: int = 0,
+        dataloader_idx: int,
     ) -> None:
         imgs, labels, centre = batch
         dice = torchmetrics.functional.dice(
@@ -203,8 +203,8 @@ class DeepLabLightning(pl.LightningModule):
 
         if dataloader_idx == 0:
             self.in_test_table.extend(images)
-        # else:
-        #     self.out_test_table.extend(images)
+        else:
+            self.out_test_table.extend(images)
 
     def on_test_end(self) -> None:
         self.img_logger.log_table(
@@ -213,8 +213,8 @@ class DeepLabLightning(pl.LightningModule):
             data=self.in_test_table,
         )
 
-        # self.img_logger.log_table(
-        #     key="out distribution test set predictions",
-        #     columns=self.columns_test,
-        #     data=self.out_test_table,
-        # )
+        self.img_logger.log_table(
+            key="out distribution test set predictions",
+            columns=self.columns_test,
+            data=self.out_test_table,
+        )

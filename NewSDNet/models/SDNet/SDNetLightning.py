@@ -421,9 +421,9 @@ class SDNetLightning(pl.LightningModule):
         if dataloader_idx == 0:
             self.anatomy_in_test.extend(anatomy_channels)
             self.in_test_table.extend(general_imgs)
-        # else:
-        #     self.anatomy_out_test.extend(anatomy_channels)
-        #     self.out_test_table.extend(general_imgs)
+        else:
+            self.anatomy_out_test.extend(anatomy_channels)
+            self.out_test_table.extend(general_imgs)
 
     def on_test_end(self) -> None:
         anatomy_in_test_wandb = []
@@ -464,40 +464,40 @@ class SDNetLightning(pl.LightningModule):
             data=in_test_table_wandb,
         )
 
-        # anatomy_out_test_wandb = []
-        # for row in self.anatomy_out_test:
-        #     anatomy_wand = [
-        #         wandb.Image(row[0]),
-        #         wandb.Image(row[1]),
-        #         wandb.Image(row[2]),
-        #         wandb.Image(row[3]),
-        #         wandb.Image(row[4]),
-        #         wandb.Image(row[5]),
-        #         wandb.Image(row[6]),
-        #         wandb.Image(row[7]),
-        #     ]
-        #     anatomy_out_test_wandb.append(anatomy_wand)
-        # self.trainer.logger.log_table(
-        #     key="out distribution test anatomy channels",
-        #     columns=self.columns_anatomy,
-        #     data=anatomy_out_test_wandb,
-        # )
+        anatomy_out_test_wandb = []
+        for row in self.anatomy_out_test:
+            anatomy_wand = [
+                wandb.Image(row[0]),
+                wandb.Image(row[1]),
+                wandb.Image(row[2]),
+                wandb.Image(row[3]),
+                wandb.Image(row[4]),
+                wandb.Image(row[5]),
+                wandb.Image(row[6]),
+                wandb.Image(row[7]),
+            ]
+            anatomy_out_test_wandb.append(anatomy_wand)
+        self.trainer.logger.log_table(
+            key="out distribution test anatomy channels",
+            columns=self.columns_anatomy,
+            data=anatomy_out_test_wandb,
+        )
 
-        # out_test_table_wandb = []
-        # for row in self.out_test_table:
-        #     anatomy_wand = [
-        #         row[0],
-        #         row[1],
-        #         row[2],
-        #         row[3],
-        #         wandb.Image(row[4]),
-        #         wandb.Image(row[5]),
-        #         wandb.Image(row[6]),
-        #         wandb.Image(row[7]),
-        #     ]
-        #     out_test_table_wandb.append(anatomy_wand)
-        # self.trainer.logger.log_table(
-        #     key="out distribution test table",
-        #     columns=self.columns_table_test,
-        #     data=out_test_table_wandb,
-        # )
+        out_test_table_wandb = []
+        for row in self.out_test_table:
+            anatomy_wand = [
+                row[0],
+                row[1],
+                row[2],
+                row[3],
+                wandb.Image(row[4]),
+                wandb.Image(row[5]),
+                wandb.Image(row[6]),
+                wandb.Image(row[7]),
+            ]
+            out_test_table_wandb.append(anatomy_wand)
+        self.trainer.logger.log_table(
+            key="out distribution test table",
+            columns=self.columns_table_test,
+            data=out_test_table_wandb,
+        )

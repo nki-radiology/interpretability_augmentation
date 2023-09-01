@@ -185,7 +185,7 @@ poetry.toml
 pyrightconfig.json
 
 ### VisualStudioCode ###
-.vscode/*
+.vscode/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -213,7 +213,9 @@ preds_ex_pre/
 processing/
 projects/
 results/
-*__pycache__/
+*/__pycache__
+*/*/__pycache__
+*/*/*/__pycache__
 .vscode/
 outputs/
 NewSDNet/csv_files/

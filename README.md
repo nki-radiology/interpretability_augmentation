@@ -2,6 +2,8 @@
 
 This repository contains the code of the paper **Interpretability-guided Data Augmentation for Robust Segmentation in Multi-centre Colonoscopy Data**, accepted at the [MLMI workshop at MICCAI 2023](https://sites.google.com/view/mlmi2023).
 
+A pre-print of the paper is available at [this link](http://arxiv.org/abs/2308.15881).
+
 ### Graphical Abstract
 
 ![all_in_one_figure](NewSDNet/figures/all_in_one_figure.png)
@@ -12,10 +14,12 @@ All experiments were carried out using the following:
 ```
 albumentations==1.3.0
 captum==0.6.0
+hydra-core==1.3.2
 kornia==0.6.12
 lightning==2.0.0
 monai==1.1.0
 numpy==1.23.0
+omegaconf==2.3.0
 pandas==1.4.3
 psutil==5.9.4
 scikit-image==0.19.2
@@ -34,37 +38,11 @@ All experiments were conducted on the open-source PolypGen dataset. You can ask 
 To launch the training of one of the available models run the following:
 
 ```
-python /projects/shift_review/sdnet_miccai/train.py \
-    --num-workers [NUM_WORKERS] \
-    --max-epochs [MAX_EPOCHS] \
-    --model-name [MODEL_NAME] \
-    --classifier-ckpt-path [PATH_TO_CLAFFIER_CHECKPOINT] \
-    --csv-file-name [NAME_OF_CSV_DATASET_SPLIT] \
-    --save-path [PATH_TO_FOLDER_OF_RESULTS] \
-    --csv-saliency [PATH_TO_CSV_WITH_PREGENERATED_GRADCAM] \
-    --wandb-name [W&B_RUN_NAME] \
-    --project-name [W&B_PROJECT_NAME]
+python /PATH_TO_REPO/train.py 
 ```
-### Testing
-
-To launch only the testing of one of the available models run the following: 
-
-```
-python /projects/shift_review/sdnet_miccai/test.py \
-    --num-workers [NUM_WORKERS] \
-    --model-name [MODEL_NAME] \
-    --csv-file-name [NAME_OF_CSV_DATASET_SPLIT] \
-    --save-path [PATH_TO_FOLDER_OF_RESULTS] \
-    --classifier-ckpt-path [PATH_TO_CLAFFIER_CHECKPOINT] \
-    --ckpt-path [PATH_TO_CHECKPOINT_TO_TEST] \
-    --csv-saliency [PATH_TO_CSV_WITH_PREGENERATED_GRADCAM] \
-    --wandb-name [W&B_RUN_NAME] \
-    --project-name [W&B_PROJECT_NAME]
-   ```
+All configuration parameters are handles by [Hydra](https://hydra.cc/), to run different experiments modify the config files available in the folder `conf`. Please refer to Hydra docs to see how to over-ride configuration parameters directly from the command line. 
 
 ### To-do
-
-* Use [Hydra](https://hydra.cc/) to handle configurations instead of command line arguments
 * Remove artifact creation in W&B logging
 
 ### Aknowledgments
